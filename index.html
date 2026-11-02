@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amardeep School - Live Bus Tracking</title>
+    <!-- Leaflet CSS for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary-dark: #1B4D2E;
+            --primary-green: #2E6F40;
+            --accent-gold: #F4B41A;
+            --bg-cream: #FFFDF7;
+            --text-dark: #222222;
+            --card-bg: #FFFFFF;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-cream);
+            color: var(--text-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Navigation Header */
+        header {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary-green));
+            color: white;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* School Logo Image Style */
+        .school-logo-img {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--accent-gold);
+            background-color: #ffffff;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .header-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #FFFFFF;
+        }
+
+        .status-badge {
+            background-color: var(--accent-gold);
+            color: var(--primary-dark);
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 12px;
+            text-transform: uppercase;
+        }
+
+        /* Mode Selection Bar (Below Heading) */
+        .mode-bar {
+            background: #EAEFEA;
+            padding: 10px 16px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            border-bottom: 1px solid #D0DDD0;
+        }
+
+        .mode-btn {
+            flex: 1;
+            max-width: 200px;
+            padding: 9px 14px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border: 1px solid var(--primary-green);
+            background-color: white;
+            color: var(--primary-green);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .mode-btn.active {
+            background-color: var(--primary-green);
+            color: white;
+            box-shadow: 0 2px 6px rgba(46, 111, 64, 0.3);
+        }
+
+        /* Main App Body Layout */
+        .app-container {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            padding: 16px;
+            gap: 16px;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        @media (min-width: 768px) {
+            .app-container {
+                flex-direction: row;
+            }
+            .sidebar {
+                width: 340px;
+            }
+            .map-view {
+                flex: 1;
+            }
+        }
+
+        /* Sidebar Panels */
+        .panel {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border: 1px solid #E2E8E2;
+        }
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary-dark);
+            margin-bottom: 12px;
+            border-bottom: 2px solid #EAEFEA;
+            padding-bottom: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        select, button, input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #CCC;
+            font-size: 0.95rem;
+        }
+
+        .btn-action {
+            background-color: var(--primary-green);
+            color: white;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            margin-top: 6px;
+        }
+
+        .btn-action.stop {
+            background-color: #D32F2F;
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #F4F7F4;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
+        .toggle-container input[type="checkbox"] {
+            width: auto;
+            transform: scale(1.2);
+        }
+
+        /* Metrics Display Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .metric-card {
+            background-color: #F8FAF8;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 4px solid var(--accent-gold);
+        }
+
+        .metric-card .val {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary-dark);
+        }
+
+        .metric-card .lbl {
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        /* Map Styling */
+        #map {
+            width: 100%;
+            height: 420px;
+            border-radius: 10px;
+            border: 1px solid #D0DDD0;
+            z-index: 1;
+        }
+
+        @media (min-width: 768px) {
+            #map {
+                height: 100%;
+                min-height: 520px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Navigation Bar -->
+    <header>
+        <div class="brand-container">
+            <img src="Amardeep Senior Secondary Logo .jpg" 
+                 alt="Amardeep School Logo" 
+                 class="school-logo-img"
+                 onerror="this.onerror=null; this.src='logo.png';" />
+            <div class="header-title">Amardeep School</div>
+        </div>
+        <div class="status-badge" id="liveBadge">Live Tracker</div>
+    </header>
+
+    <!-- Role Switcher Buttons (Directly Below Heading) -->
+    <div class="mode-bar" id="modeSelectorBar">
+        <button class="mode-btn active" id="btnParentView" onclick="switchView('parent')">Parent View</button>
+        <button class="mode-btn" id="btnDriverView" onclick="switchView('driver')">Driver Mode</button>
+    </div>
+
+    <!-- Main Application Container -->
+    <div class="app-container">
+        
+        <!-- Left Sidebar Controls -->
+        <div class="sidebar">
+            
+            <!-- Parent Panel -->
+            <div class="panel" id="parentPanel">
+                <div class="panel-title">Track School Bus</div>
+                
+                <div class="form-group">
+                    <label for="parentRouteSelect">Select Bus Route:</label>
+                    <select id="parentRouteSelect" onchange="changeRoute(this.value)">
+                        <option value="route1">Route 1: Bhatnura - Lubana</option>
+                        <option value="route2">Route 2: Bhogpur Town</option>
+                        <option value="route3">Route 3: Tanda Road Expressway</option>
+                    </select>
+                </div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="lbl">Estimated Arrival</div>
+                        <div class="val" id="etaVal">8 Mins</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="lbl">Current Speed</div>
+                        <div class="val" id="speedVal">32 km/h</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 14px; font-size: 0.85rem; color: #555;">
+                    <strong>Next Stop:</strong> <span id="nextStopLbl">Main Gate Stop</span>
+                </div>
+            </div>
+
+            <!-- Driver Broadcast Panel -->
+            <div class="panel" id="driverPanel" style="display: none;">
+                <div class="panel-title">Driver Broadcast Panel</div>
+
+                <div class="form-group">
+                    <label for="driverRouteSelect">Assigned Bus Route:</label>
+                    <select id="driverRouteSelect">
+                        <option value="route1">Route 1: Bhatnura - Lubana</option>
+                        <option value="route2">Route 2: Bhogpur Town</option>
+                        <option value="route3">Route 3: Tanda Road Expressway</option>
+                    </select>
+                </div>
+
+                <div class="toggle-container">
+                    <label for="autoScheduleCheck" style="margin: 0; cursor: pointer;">
+                        Auto-Broadcast Shift Timings
+                        <div style="font-size: 0.75rem; color: #666; font-weight: normal;">(07:00-09:00 AM & 02:00-04:00 PM)</div>
+                    </label>
+                    <input type="checkbox" id="autoScheduleCheck" checked onchange="toggleAutoSchedule(this.checked)" />
+                </div>
+
+                <button class="btn-action" id="toggleBroadcastingBtn" onclick="toggleManualBroadcasting()">
+                    Start Live GPS Broadcast
+                </button>
+
+                <div style="margin-top: 10px; font-size: 0.8rem; color: #666; text-align: center;" id="broadcastStatusMsg">
+                    Status: Idle (Standby)
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Side Map Display -->
+        <div class="map-view">
+            <div id="map"></div>
+        </div>
+
+    </div>
+
+    <!-- Leaflet OpenStreetMap Engine JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Preset Routes Data (Bhatnura, Lubana, Bhogpur Region)
+        const routes = {
+            route1: {
+                name: "Bhatnura - Lubana",
+                path: [[31.545, 75.640], [31.548, 75.644], [31.552, 75.649], [31.556, 75.653]],
+                stops: [
+                    { lat: 31.545, lng: 75.640, name: "Bhatnura Bus Stop" },
+                    { lat: 31.556, lng: 75.653, name: "Amardeep Public School" }
+                ]
+            },
+            route2: {
+                name: "Bhogpur Town",
+                path: [[31.550, 75.620], [31.553, 75.630], [31.556, 75.653]],
+                stops: [
+                    { lat: 31.550, lng: 75.620, name: "Bhogpur GT Road" },
+                    { lat: 31.556, lng: 75.653, name: "Amardeep Public School" }
+                ]
+            }
+        };
+
+        let map, busMarker, routeLine;
+        let isBroadcasting = false;
+        let currentRouteKey = 'route1';
+        let broadcastChannel = new BroadcastChannel('amardeep_bus_tracker');
+
+        // Initialize Map with Free OpenStreetMap Tiles (No API Key Required)
+        function initMap() {
+            map = L.map('map').setView([31.556, 75.653], 14);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+
+            // Custom Bus Marker
+            const busIcon = L.divIcon({
+                className: 'custom-bus-icon',
+                html: `<div style="background-color:#F4B41A; width:30px; height:30px; border-radius:50%; border:2px solid #1B4D2E; display:flex; align-items:center; justify-content:center; font-weight:bold; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">🚌</div>`,
+                iconSize: [30, 30]
+            });
+
+            busMarker = L.marker([31.556, 75.653], { icon: busIcon }).addTo(map);
+            drawRoute(currentRouteKey);
+        }
+
+        function drawRoute(routeKey) {
+            if (routeLine) map.removeLayer(routeLine);
+            const routeData = routes[routeKey];
+            routeLine = L.polyline(routeData.path, { color: '#2E6F40', weight: 5, opacity: 0.7 }).addTo(map);
+            map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
+        }
+
+        function changeRoute(routeKey) {
+            currentRouteKey = routeKey;
+            drawRoute(routeKey);
+        }
+
+        // View Handling & Query Parameter Link Routing
+        function applyUrlRouting() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const view = urlParams.get('view');
+            
+            if (view === 'parent') {
+                switchView('parent');
+                document.getElementById('modeSelectorBar').style.display = 'none'; // Hide role bar for direct parent links
+            } else if (view === 'driver') {
+                switchView('driver');
+                document.getElementById('modeSelectorBar').style.display = 'none'; // Hide role bar for direct driver links
+            }
+        }
+
+        function switchView(mode) {
+            document.getElementById('btnParentView').classList.toggle('active', mode === 'parent');
+            document.getElementById('btnDriverView').classList.toggle('active', mode === 'driver');
+            
+            document.getElementById('parentPanel').style.display = (mode === 'parent') ? 'block' : 'none';
+            document.getElementById('driverPanel').style.display = (mode === 'driver') ? 'block' : 'none';
+        }
+
+        // Broadcaster / Driver Functions
+        function toggleManualBroadcasting() {
+            isBroadcasting = !isBroadcasting;
+            const btn = document.getElementById('toggleBroadcastingBtn');
+            const statusMsg = document.getElementById('broadcastStatusMsg');
+
+            if (isBroadcasting) {
+                btn.innerText = "Stop Live GPS Broadcast";
+                btn.classList.add('stop');
+                statusMsg.innerText = "Status: Broadcasting Live Location...";
+                startTransmitting();
+            } else {
+                btn.innerText = "Start Live GPS Broadcast";
+                btn.classList.remove('stop');
+                statusMsg.innerText = "Status: Idle (Standby)";
+            }
+        }
+
+        function startTransmitting() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.watchPosition((pos) => {
+                    if (!isBroadcasting) return;
+                    const data = {
+                        lat: pos.coords.latitude,
+                        lng: pos.coords.longitude,
+                        speed: Math.round((pos.coords.speed || 0) * 3.6),
+                        route: document.getElementById('driverRouteSelect').value
+                    };
+                    broadcastChannel.postMessage(data);
+                    updateBusPosition(data.lat, data.lng, data.speed);
+                }, (err) => {
+                    console.warn("GPS error or simulator active.");
+                }, { enableHighAccuracy: true });
+            }
+        }
+
+        // Receive Live Broadcast Data Across Devices/Tabs
+        broadcastChannel.onmessage = (event) => {
+            const data = event.data;
+            if (data && data.lat && data.lng) {
+                updateBusPosition(data.lat, data.lng, data.speed);
+            }
+        };
+
+        function updateBusPosition(lat, lng, speed) {
+            if (busMarker) {
+                busMarker.setLatLng([lat, lng]);
+                document.getElementById('speedVal').innerText = `${speed || 28} km/h`;
+            }
+        }
+
+        // On Page Load
+        window.onload = () => {
+            initMap();
+            applyUrlRouting();
+        };
+    </script>
+</body>
+</html>
