@@ -35,7 +35,7 @@
         header {
             background: linear-gradient(135deg, var(--primary-dark), var(--primary-green));
             color: white;
-            padding: 14px 20px;
+            padding: 12px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -50,8 +50,8 @@
 
         /* School Logo Image Style */
         .school-logo-img {
-            width: 44px;
-            height: 44px;
+            width: 46px;
+            height: 46px;
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid var(--accent-gold);
@@ -59,11 +59,26 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.2);
         }
 
+        .header-title-block {
+            display: flex;
+            flex-direction: column;
+        }
+
         .header-title {
-            font-size: 1.35rem;
+            font-size: 1.3rem;
             font-weight: 700;
             letter-spacing: 0.5px;
             color: #FFFFFF;
+            line-height: 1.1;
+        }
+
+        .header-motto {
+            font-size: 0.75rem;
+            color: var(--accent-gold);
+            font-weight: 600;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            margin-top: 3px;
         }
 
         .status-badge {
@@ -249,12 +264,15 @@
                  alt="Amardeep School Logo" 
                  class="school-logo-img"
                  onerror="this.onerror=null; this.src='logo.png';" />
-            <div class="header-title">Amardeep School</div>
+            <div class="header-title-block">
+                <div class="header-title">Amardeep School</div>
+                <div class="header-motto">Service to Humanity</div>
+            </div>
         </div>
         <div class="status-badge" id="liveBadge">Live Tracker</div>
     </header>
 
-    <!-- Role Switcher Buttons (Directly Below Heading) -->
+    <!-- Role Switcher Buttons -->
     <div class="mode-bar" id="modeSelectorBar">
         <button class="mode-btn active" id="btnParentView" onclick="switchView('parent')">Parent View</button>
         <button class="mode-btn" id="btnDriverView" onclick="switchView('driver')">Driver Mode</button>
@@ -275,7 +293,7 @@
                     <select id="parentRouteSelect" onchange="changeRoute(this.value)">
                         <option value="route1">Route 1: Bhatnura - Lubana</option>
                         <option value="route2">Route 2: Bhogpur Town</option>
-                        <option value="route3">Route 3: Tanda Road Expressway</option>
+                        <option value="route3">Route 3: Jalandhar Highway</option>
                     </select>
                 </div>
 
@@ -304,16 +322,16 @@
                     <select id="driverRouteSelect">
                         <option value="route1">Route 1: Bhatnura - Lubana</option>
                         <option value="route2">Route 2: Bhogpur Town</option>
-                        <option value="route3">Route 3: Tanda Road Expressway</option>
+                        <option value="route3">Route 3: Jalandhar Highway</option>
                     </select>
                 </div>
 
                 <div class="toggle-container">
                     <label for="autoScheduleCheck" style="margin: 0; cursor: pointer;">
                         Auto-Broadcast Shift Timings
-                        <div style="font-size: 0.75rem; color: #666; font-weight: normal;">(07:00-09:00 AM & 02:00-04:00 PM)</div>
+                        <div style="font-size: 0.75rem; color: #666; font-weight: normal;">(05:45-09:00 AM & 01:00-04:00 PM)</div>
                     </label>
-                    <input type="checkbox" id="autoScheduleCheck" checked onchange="toggleAutoSchedule(this.checked)" />
+                    <input type="checkbox" id="autoScheduleCheck" checked />
                 </div>
 
                 <button class="btn-action" id="toggleBroadcastingBtn" onclick="toggleManualBroadcasting()">
@@ -337,7 +355,7 @@
     <!-- Leaflet OpenStreetMap Engine JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Preset Routes Data (Bhatnura, Lubana, Bhogpur Region)
+        // Preset Routes Data
         const routes = {
             route1: {
                 name: "Bhatnura - Lubana",
@@ -354,6 +372,14 @@
                     { lat: 31.550, lng: 75.620, name: "Bhogpur GT Road" },
                     { lat: 31.556, lng: 75.653, name: "Amardeep Public School" }
                 ]
+            },
+            route3: {
+                name: "Jalandhar Highway",
+                path: [[31.556, 75.653], [31.570, 75.670], [31.590, 75.700]],
+                stops: [
+                    { lat: 31.556, lng: 75.653, name: "Amardeep Public School" },
+                    { lat: 31.590, lng: 75.700, name: "Jalandhar Terminal" }
+                ]
             }
         };
 
@@ -362,7 +388,6 @@
         let currentRouteKey = 'route1';
         let broadcastChannel = new BroadcastChannel('amardeep_bus_tracker');
 
-        // Initialize Map with Free OpenStreetMap Tiles (No API Key Required)
         function initMap() {
             map = L.map('map').setView([31.556, 75.653], 14);
 
@@ -371,7 +396,6 @@
                 attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             }).addTo(map);
 
-            // Custom Bus Marker
             const busIcon = L.divIcon({
                 className: 'custom-bus-icon',
                 html: `<div style="background-color:#F4B41A; width:30px; height:30px; border-radius:50%; border:2px solid #1B4D2E; display:flex; align-items:center; justify-content:center; font-weight:bold; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">🚌</div>`,
@@ -394,17 +418,16 @@
             drawRoute(routeKey);
         }
 
-        // View Handling & Query Parameter Link Routing
         function applyUrlRouting() {
             const urlParams = new URLSearchParams(window.location.search);
             const view = urlParams.get('view');
             
             if (view === 'parent') {
                 switchView('parent');
-                document.getElementById('modeSelectorBar').style.display = 'none'; // Hide role bar for direct parent links
+                document.getElementById('modeSelectorBar').style.display = 'none';
             } else if (view === 'driver') {
                 switchView('driver');
-                document.getElementById('modeSelectorBar').style.display = 'none'; // Hide role bar for direct driver links
+                document.getElementById('modeSelectorBar').style.display = 'none';
             }
         }
 
@@ -416,7 +439,6 @@
             document.getElementById('driverPanel').style.display = (mode === 'driver') ? 'block' : 'none';
         }
 
-        // Broadcaster / Driver Functions
         function toggleManualBroadcasting() {
             isBroadcasting = !isBroadcasting;
             const btn = document.getElementById('toggleBroadcastingBtn');
@@ -452,7 +474,6 @@
             }
         }
 
-        // Receive Live Broadcast Data Across Devices/Tabs
         broadcastChannel.onmessage = (event) => {
             const data = event.data;
             if (data && data.lat && data.lng) {
@@ -467,10 +488,36 @@
             }
         }
 
-        // On Page Load
+        // Automated Schedule Checker (Morning: 5:45 AM - 9:00 AM, Afternoon: 1:00 PM - 4:00 PM)
+        function checkAutoSchedule() {
+            const autoCheck = document.getElementById('autoScheduleCheck');
+            if (!autoCheck || !autoCheck.checked) return;
+
+            const now = new Date();
+            const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+
+            const morningStart = 5 * 60 + 45; // 5:45 AM
+            const morningEnd = 9 * 60;          // 9:00 AM
+            const afternoonStart = 13 * 60;     // 1:00 PM
+            const afternoonEnd = 16 * 60;       // 4:00 PM
+
+            const isWithinMorning = currentTimeInMinutes >= morningStart && currentTimeInMinutes <= morningEnd;
+            const isWithinAfternoon = currentTimeInMinutes >= afternoonStart && currentTimeInMinutes <= afternoonEnd;
+
+            if ((isWithinMorning || isWithinAfternoon) && !isBroadcasting) {
+                toggleManualBroadcasting();
+                document.getElementById('broadcastStatusMsg').innerText = "Status: Auto-Broadcasting (Shift Active)";
+            } else if (!isWithinMorning && !isWithinAfternoon && isBroadcasting) {
+                toggleManualBroadcasting();
+                document.getElementById('broadcastStatusMsg').innerText = "Status: Shift Completed (Standby)";
+            }
+        }
+
         window.onload = () => {
             initMap();
             applyUrlRouting();
+            // Check schedule every 30 seconds
+            setInterval(checkAutoSchedule, 30000);
         };
     </script>
 </body>
