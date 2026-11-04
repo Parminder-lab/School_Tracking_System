@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Amardeep School - Live Bus Tracking</title>
     <!-- Leaflet CSS for Maps -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -332,7 +332,7 @@
             <!-- Parent Panel -->
             <div class="panel" id="parentPanel">
                 <div class="panel-title">
-                    <i class="fa-solid fa-bus text-amber-500"></i> Track School Bus
+                    <i class="fa-solid fa-bus" style="color: #F4B41A;"></i> Track School Bus
                 </div>
                 
                 <div class="form-group">
@@ -363,7 +363,7 @@
             <!-- Driver Broadcast Panel (Protected by Password) -->
             <div class="panel" id="driverPanel" style="display: none;">
                 <div class="panel-title">
-                    <i class="fa-solid fa-tower-broadcast text-emerald-600"></i> Driver Broadcast Panel
+                    <i class="fa-solid fa-tower-broadcast" style="color: #2E6F40;"></i> Driver Broadcast Panel
                 </div>
 
                 <div class="form-group">
@@ -386,7 +386,7 @@
                 </div>
 
                 <button class="btn-action" id="toggleBroadcastingBtn" onclick="toggleManualBroadcasting()">
-                    <i class="fa-solid fa-satellite-dish mr-1"></i> Start Live GPS Broadcast
+                    <i class="fa-solid fa-satellite-dish"></i> Start Live GPS Broadcast
                 </button>
 
                 <div style="margin-top: 12px; font-size: 0.8rem; color: #6B7280; text-align: center;" id="broadcastStatusMsg">
@@ -404,12 +404,12 @@
     </div>
 
     <!-- Leaflet OpenStreetMap Engine JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <script>
-        // Driver Password Configuration
+        // Driver PIN Security
         const DRIVER_PASSWORD = "1234";
 
-        // Preset Routes Configuration
+        // Route Presets
         const routes = {
             route1: {
                 name: "Bhatnura - Lubana",
@@ -433,37 +433,42 @@
         let currentRouteKey = 'route1';
         let parentCoords = null; 
         let driverWatchId = null;
-        let parentWatchId = null;
 
         let lastDriverPos = null;
         let lastDriverTime = null;
 
-        // BroadcastChannel for instant cross-tab telemetry sync
-        const broadcastChannel = new BroadcastChannel('amardeep_bus_tracker');
+        // Channel for instant tab-to-tab transmission
+        let broadcastChannel = null;
+        try {
+            broadcastChannel = new BroadcastChannel('amardeep_bus_tracker');
+        } catch (e) {
+            console.warn("BroadcastChannel not supported in this browser mode.");
+        }
 
         function initMap() {
-            const initialPos = routes[currentRouteKey].path[0];
-            map = L.map('map').setView(initialPos, 14);
+            try {
+                const initialPos = routes[currentRouteKey].path[0];
+                map = L.map('map').setView(initialPos, 14);
 
-            // Keyless OpenStreetMap Tile Layer
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            }).addTo(map);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap'
+                }).addTo(map);
 
-            // Bus Marker Icon
-            const busIcon = L.divIcon({
-                className: 'custom-bus-icon',
-                html: `<div style="background-color:#F4B41A; width:34px; height:34px; border-radius:50%; border:2px solid #1B4D2E; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow: 0 3px 8px rgba(0,0,0,0.3);">🚌</div>`,
-                iconSize: [34, 34],
-                iconAnchor: [17, 17]
-            });
+                const busIcon = L.divIcon({
+                    className: 'custom-bus-icon',
+                    html: `<div style="background-color:#F4B41A; width:34px; height:34px; border-radius:50%; border:2px solid #1B4D2E; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow: 0 3px 8px rgba(0,0,0,0.3);">🚌</div>`,
+                    iconSize: [34, 34],
+                    iconAnchor: [17, 17]
+                });
 
-            busMarker = L.marker(initialPos, { icon: busIcon }).addTo(map);
-            drawRoute(currentRouteKey);
+                busMarker = L.marker(initialPos, { icon: busIcon }).addTo(map);
+                drawRoute(currentRouteKey);
 
-            // Automatically track parent location continuously for instant distance calculations
-            startParentLocationTracking();
+                startParentLocationTracking();
+            } catch (err) {
+                console.error("Error initializing Leaflet map:", err);
+            }
         }
 
         function drawRoute(routeKey) {
@@ -477,18 +482,21 @@
 
         function changeRoute(routeKey) {
             currentRouteKey = routeKey;
-            document.getElementById('parentRouteSelect').value = routeKey;
-            document.getElementById('driverRouteSelect').value = routeKey;
+            const parentSel = document.getElementById('parentRouteSelect');
+            const driverSel = document.getElementById('driverRouteSelect');
+            if (parentSel) parentSel.value = routeKey;
+            if (driverSel) driverSel.value = routeKey;
             drawRoute(routeKey);
         }
 
         function applyUrlRouting() {
             const urlParams = new URLSearchParams(window.location.search);
             const view = urlParams.get('view');
+            const modeBar = document.getElementById('modeSelectorBar');
             
             if (view === 'parent') {
                 switchView('parent');
-                document.getElementById('modeSelectorBar').style.display = 'none';
+                if (modeBar) modeBar.style.display = 'none';
             } else if (view === 'driver') {
                 promptPasswordAndSwitch();
             }
@@ -499,24 +507,30 @@
         }
 
         function promptPasswordAndSwitch() {
-            const enteredPwd = prompt("Enter Driver/Admin Password to Access Driver Mode:");
+            const enteredPwd = prompt("Enter Driver PIN to Access Driver Mode:");
+            const modeBar = document.getElementById('modeSelectorBar');
             if (enteredPwd === DRIVER_PASSWORD) {
                 switchView('driver');
-                document.getElementById('modeSelectorBar').style.display = 'none';
+                if (modeBar) modeBar.style.display = 'none';
             } else if (enteredPwd !== null) {
-                alert("Incorrect password. Access denied.");
+                alert("Incorrect PIN. Access denied.");
                 switchView('parent');
             }
         }
 
         function switchView(mode) {
-            document.getElementById('btnParentView').classList.toggle('active', mode === 'parent');
-            document.getElementById('btnDriverView').classList.toggle('active', mode === 'driver');
-            
-            document.getElementById('parentPanel').style.display = (mode === 'parent') ? 'block' : 'none';
-            document.getElementById('driverPanel').style.display = (mode === 'driver') ? 'block' : 'none';
+            const btnParent = document.getElementById('btnParentView');
+            const btnDriver = document.getElementById('btnDriverView');
+            const parentPanel = document.getElementById('parentPanel');
+            const driverPanel = document.getElementById('driverPanel');
 
-            // SAFETY KILLSWITCH: Shut down GPS broadcasting if user switches back to Parent Mode
+            if (btnParent) btnParent.classList.toggle('active', mode === 'parent');
+            if (btnDriver) btnDriver.classList.toggle('active', mode === 'driver');
+            
+            if (parentPanel) parentPanel.style.display = (mode === 'parent') ? 'block' : 'none';
+            if (driverPanel) driverPanel.style.display = (mode === 'driver') ? 'block' : 'none';
+
+            // Safety Killswitch: Stop driver broadcast if switched back to Parent Mode
             if (mode === 'parent' && isBroadcasting) {
                 toggleManualBroadcasting();
             }
@@ -526,19 +540,17 @@
             }
         }
 
-        // Real-Time Read-Only Location Tracking for Parent
         function startParentLocationTracking() {
             if ("geolocation" in navigator) {
-                parentWatchId = navigator.geolocation.watchPosition((pos) => {
+                navigator.geolocation.watchPosition((pos) => {
                     parentCoords = {
                         lat: pos.coords.latitude,
                         lng: pos.coords.longitude
                     };
 
-                    // Render or update blue parent marker
                     if (parentMarker) {
                         parentMarker.setLatLng([parentCoords.lat, parentCoords.lng]);
-                    } else {
+                    } else if (map) {
                         const parentIcon = L.divIcon({
                             className: 'custom-parent-icon',
                             html: `<div style="background-color:#2E6F40; color:white; width:26px; height:26px; border-radius:50%; border:2px solid white; display:flex; align-items:center; justify-content:center; font-size:12px; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">📍</div>`,
@@ -551,24 +563,28 @@
 
                     updateDistanceDisplay();
                 }, (err) => {
-                    document.getElementById('distanceVal').innerText = "GPS permission needed";
+                    const distEl = document.getElementById('distanceVal');
+                    if (distEl) distEl.innerText = "GPS permission needed";
                 }, { enableHighAccuracy: true });
             } else {
-                document.getElementById('distanceVal').innerText = "GPS not supported";
+                const distEl = document.getElementById('distanceVal');
+                if (distEl) distEl.innerText = "GPS not supported";
             }
         }
 
-        // Distance Calculation Function
         function updateDistanceDisplay() {
             if (!parentCoords || !busMarker || !map) return;
             const busPos = busMarker.getLatLng();
             const distanceMeters = map.distance([parentCoords.lat, parentCoords.lng], [busPos.lat, busPos.lng]);
             const distanceKm = (distanceMeters / 1000).toFixed(2);
-            document.getElementById('distanceVal').innerText = `${distanceKm} km away`;
 
-            // Simple ETA estimation based on 30 km/h average bus speed
+            const distEl = document.getElementById('distanceVal');
+            const etaEl = document.getElementById('etaVal');
+
+            if (distEl) distEl.innerText = `${distanceKm} km away`;
+
             const etaMinutes = Math.max(1, Math.round((distanceMeters / 1000) / 30 * 60));
-            document.getElementById('etaVal').innerText = `~${etaMinutes} mins`;
+            if (etaEl) etaEl.innerText = `~${etaMinutes} mins`;
         }
 
         function toggleManualBroadcasting() {
@@ -577,14 +593,18 @@
             const statusMsg = document.getElementById('broadcastStatusMsg');
 
             if (isBroadcasting) {
-                btn.innerHTML = '<i class="fa-solid fa-stop mr-1"></i> Stop Live GPS Broadcast';
-                btn.classList.add('stop');
-                statusMsg.innerText = "Status: Broadcasting Live Location...";
+                if (btn) {
+                    btn.innerHTML = '<i class="fa-solid fa-stop"></i> Stop Live GPS Broadcast';
+                    btn.classList.add('stop');
+                }
+                if (statusMsg) statusMsg.innerText = "Status: Broadcasting Live Location...";
                 startTransmitting();
             } else {
-                btn.innerHTML = '<i class="fa-solid fa-satellite-dish mr-1"></i> Start Live GPS Broadcast';
-                btn.classList.remove('stop');
-                statusMsg.innerText = "Status: Idle (Standby)";
+                if (btn) {
+                    btn.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> Start Live GPS Broadcast';
+                    btn.classList.remove('stop');
+                }
+                if (statusMsg) statusMsg.innerText = "Status: Idle (Standby)";
 
                 if (driverWatchId !== null) {
                     navigator.geolocation.clearWatch(driverWatchId);
@@ -603,7 +623,7 @@
 
                     if (pos.coords.speed !== null && pos.coords.speed > 0) {
                         calculatedSpeed = Math.round(pos.coords.speed * 3.6);
-                    } else if (lastDriverPos && lastDriverTime) {
+                    } else if (lastDriverPos && lastDriverTime && map) {
                         const distMeters = map.distance(
                             [lastDriverPos.lat, lastDriverPos.lng], 
                             [pos.coords.latitude, pos.coords.longitude]
@@ -617,37 +637,42 @@
                     lastDriverPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                     lastDriverTime = now;
 
+                    const driverSel = document.getElementById('driverRouteSelect');
                     const data = {
                         lat: pos.coords.latitude,
                         lng: pos.coords.longitude,
                         speed: calculatedSpeed,
-                        route: document.getElementById('driverRouteSelect').value
+                        route: driverSel ? driverSel.value : 'route1'
                     };
-                    broadcastChannel.postMessage(data);
+
+                    if (broadcastChannel) {
+                        broadcastChannel.postMessage(data);
+                    }
                     updateBusPosition(data.lat, data.lng, data.speed);
                 }, (err) => {
-                    console.warn("GPS error or offline fallback.");
+                    console.warn("GPS watch position error:", err);
                 }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
             }
         }
 
-        // Receive Telemetry Data Across Browser Tabs
-        broadcastChannel.onmessage = (event) => {
-            const data = event.data;
-            if (data && data.lat && data.lng) {
-                updateBusPosition(data.lat, data.lng, data.speed);
-            }
-        };
+        if (broadcastChannel) {
+            broadcastChannel.onmessage = (event) => {
+                const data = event.data;
+                if (data && data.lat && data.lng) {
+                    updateBusPosition(data.lat, data.lng, data.speed);
+                }
+            };
+        }
 
         function updateBusPosition(lat, lng, speed) {
             if (busMarker) {
                 busMarker.setLatLng([lat, lng]);
-                document.getElementById('speedVal').innerText = `${speed || 0} km/h`;
+                const speedEl = document.getElementById('speedVal');
+                if (speedEl) speedEl.innerText = `${speed || 0} km/h`;
                 updateDistanceDisplay();
             }
         }
 
-        // Automated Shift Schedule Engine (Guarded strictly for Driver Mode)
         function checkAutoSchedule() {
             const driverPanel = document.getElementById('driverPanel');
             const isDriverView = driverPanel && driverPanel.style.display !== 'none';
@@ -659,20 +684,22 @@
             const now = new Date();
             const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
 
-            const morningStart = 5 * 60 + 45; // 5:45 AM
-            const morningEnd = 9 * 60;          // 9:00 AM
-            const afternoonStart = 13 * 60;     // 1:00 PM
-            const afternoonEnd = 16 * 60;       // 4:00 PM
+            const morningStart = 5 * 60 + 45; // 05:45 AM
+            const morningEnd = 9 * 60;          // 09:00 AM
+            const afternoonStart = 13 * 60;     // 01:00 PM
+            const afternoonEnd = 16 * 60;       // 04:00 PM
 
             const isWithinMorning = currentTimeInMinutes >= morningStart && currentTimeInMinutes <= morningEnd;
             const isWithinAfternoon = currentTimeInMinutes >= afternoonStart && currentTimeInMinutes <= afternoonEnd;
 
+            const statusMsg = document.getElementById('broadcastStatusMsg');
+
             if ((isWithinMorning || isWithinAfternoon) && !isBroadcasting) {
                 toggleManualBroadcasting();
-                document.getElementById('broadcastStatusMsg').innerText = "Status: Auto-Broadcasting (Shift Active)";
+                if (statusMsg) statusMsg.innerText = "Status: Auto-Broadcasting (Shift Active)";
             } else if (!isWithinMorning && !isWithinAfternoon && isBroadcasting) {
                 toggleManualBroadcasting();
-                document.getElementById('broadcastStatusMsg').innerText = "Status: Shift Completed (Broadcasting Stopped)";
+                if (statusMsg) statusMsg.innerText = "Status: Shift Completed (Broadcasting Stopped)";
             }
         }
 
