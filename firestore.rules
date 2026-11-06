@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function isManagement() { return signedIn() && userDoc().role == 'management'; }
+    function isDriverFor(busId) { return signedIn() && userDoc().role == 'driver' && userDoc().busId == busId; }
+    function parentCanSee(busId) { return signedIn() && userDoc().role == 'parent' && busId in userDoc().busIds; }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isManagement());
+      // Create/update user profiles only in Firebase Console/admin tooling.
+      allow write: if false;
+    }
+    match /buses/{busId} {
+      allow read: if isManagement() || parentCanSee(busId) || isDriverFor(busId);
+      allow create, update: if isDriverFor(busId)
+        && request.resource.data.driverUid == request.auth.uid
+        && request.resource.data.busId == busId
+        && request.resource.data.lat is number
+        && request.resource.data.lng is number
+        && request.resource.data.lat >= -90 && request.resource.data.lat <= 90
+        && request.resource.data.lng >= -180 && request.resource.data.lng <= 180;
+      allow delete: if isManagement();
+    }
+  }
+}
